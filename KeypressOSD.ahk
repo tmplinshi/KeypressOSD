@@ -1,4 +1,4 @@
-﻿; KeypressOSD.ahk
+; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
 ; ChangeLog : v2.30 (2018-03-16) - Settings are now saved to ini file.
 ;                                - Added settings GUI and tray menu.
@@ -284,12 +284,12 @@ CreateTrayMenu() {
 ShowAboutGUI() {
 	Gui, a:Font, s12 bold
 	Gui, a:Add, Text, , KeypressOSD v2.30
-	Gui, a:Add, Link, gOpenUrl, <a>https://gist.github.com/tmplinshi/6933557</a>
+	Gui, a:Add, Link, gOpenUrl, <a>https://github.com/tmplinshi/KeypressOSD</a>
 	Gui, a:Show,, About
 	Return
 
 	OpenUrl:
-		Run, https://gist.github.com/tmplinshi/6933557
+		Run, https://github.com/tmplinshi/KeypressOSD
 	return
 }
 
