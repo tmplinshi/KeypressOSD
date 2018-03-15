@@ -1,6 +1,6 @@
 ﻿; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.23 (2018-03-16) - Settings are now saved to ini file.
+; ChangeLog : v2.30 (2018-03-16) - Settings are now saved to ini file.
 ;                                - Added settings GUI and tray menu.
 ;                                - Moved this script from Gist to GitHub.
 ;             v2.22 (2017-02-25) - Now pressing same combination keys continuously more than 2 times,
