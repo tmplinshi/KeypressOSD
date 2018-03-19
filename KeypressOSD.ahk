@@ -1,6 +1,7 @@
 ; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.30 (2018-03-16) - Settings are now saved to ini file.
+; ChangeLog : v2.40 (2018-03-19) - Added font and background color settings
+;             v2.30 (2018-03-16) - Settings are now saved to ini file.
 ;                                - Added settings GUI and tray menu.
 ;                                - Moved this script from Gist to GitHub.
 ;             v2.22 (2017-02-25) - Now pressing same combination keys continuously more than 2 times,
@@ -30,7 +31,8 @@ SetBatchLines, -1
 ListLines, Off
 
 global TransN, ShowSingleKey, ShowMouseButton, ShowSingleModifierKey, ShowModifierKeyCount
-     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight, hGUI_s
+     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight, hGUI_s, BkColor, FontColor, FontStyle, FontName
+scriptPID := DllCall("GetCurrentProcessId")
 
 ReadSettings()
 CreateTrayMenu()
@@ -38,7 +40,7 @@ CreateGUI()
 CreateHotkey()
 return
 
-#if !WinActive("ahk_id " hGUI_s)
+#if !WinExist("ahk_pid " scriptPID)
 	OnKeyPressed:
 		try {
 			key := GetKeyStr()
@@ -60,8 +62,8 @@ CreateGUI() {
 
 	Gui, +AlwaysOnTop -Caption +Owner +LastFound +E0x20
 	Gui, Margin, 0, 0
-	Gui, Color, Black
-	Gui, Font, cWhite s%FontSize% bold, Arial
+	Gui, Color, %BkColor%
+	Gui, Font, c%FontColor% %FontStyle% s%FontSize%, %FontName%
 	Gui, Add, Text, vHotkeyText Center y20
 
 	WinSet, Transparent, %TransN%
@@ -256,6 +258,10 @@ ReadSettings() {
 	IniRead, GuiPosition          , %IniFile%, Settings, GuiPosition          , Bottom
 	IniRead, FontSize             , %IniFile%, Settings, FontSize             , 50
 	IniRead, GuiHeight            , %IniFile%, Settings, GuiHeight            , 115
+	IniRead, BkColor              , %IniFile%, Settings, BkColor              , Black
+	IniRead, FontColor            , %IniFile%, Settings, FontColor            , White
+	IniRead, FontStyle            , %IniFile%, Settings, FontStyle            , w700
+	IniRead, FontName             , %IniFile%, Settings, FontName             , Arial
 }
 
 SaveSettings() {
@@ -271,6 +277,10 @@ SaveSettings() {
 	IniWrite, %GuiPosition%          , %IniFile%, Settings, GuiPosition
 	IniWrite, %FontSize%             , %IniFile%, Settings, FontSize
 	IniWrite, %GuiHeight%            , %IniFile%, Settings, GuiHeight
+	IniWrite, %BkColor%              , %IniFile%, Settings, BkColor
+	IniWrite, %FontColor%            , %IniFile%, Settings, FontColor
+	IniWrite, %FontStyle%            , %IniFile%, Settings, FontStyle
+	IniWrite, %FontName%             , %IniFile%, Settings, FontName
 }
 
 CreateTrayMenu() {
@@ -310,24 +320,39 @@ ShowSettingsGUI() {
 	Gui, s:Add, Checkbox, xm h24 vShowMouseButton Checked%ShowMouseButton%, Show Mouse Button
 	Gui, s:Add, Checkbox, xm h24 vShowSingleModifierKey Checked%ShowSingleModifierKey%, Show Single Modifier Key
 	Gui, s:Add, Checkbox, xm h24 vShowModifierKeyCount Checked%ShowModifierKeyCount%, Show Modifier Key Count
-	Gui, s:Add, Checkbox, xm h24 vShowStickyModKeyCount Checked%ShowStickyModKeyCount%, Show Sticky Mode's Key Count
+	Gui, s:Add, Checkbox, xm h24 vShowStickyModKeyCount Checked%ShowStickyModKeyCount%, Show Sticky Modifier Key Count
 	Gui, s:Add, Text, xm, Display
 	Gui, s:Add, Edit, x+10 w100 Number Center vDisplayTime, %DisplayTime%
 	Gui, s:Add, Text, x+10, Milliseconds
 	Gui, s:Add, Text, xm, Gui Position:
-	Gui, s:Add, DDL, x+10 w150 Center vGuiPosition, Bottom||Top
+	Gui, s:Add, DDL, x+10 w150 Center vGuiPosition gUpdateGuiPosition, Bottom||Top
 	GuiControl, s:Choose, GuiPosition, %GuiPosition%
 	Gui, s:Add, Text, xm, Font Size:
-	Gui, s:Add, Edit, x+10 w100 Number Center vFontSize, %FontSize%
+	Gui, s:Add, Edit, x+10 w100 Number Center vFontSize gUpdateFontSize, %FontSize%
+	Gui, s:Add, UpDown, Range1-1000 gUpdateFontSize, %fontSize%
 	Gui, s:Add, Text, xm, Gui Height:
-	Gui, s:Add, Edit, x+10 w100 Number Center vGuiHeight, %GuiHeight%
-	Gui, s:Add, Button, xm y+50 w80 gSaveSettings, OK
-	Gui, s:Add, Button, x+30 wp, Cancel
-	Gui, s:Add, Button, x+30 wp gApplySettings, Apply
+	Gui, s:Add, Edit, x+10 w100 Number Center vGuiHeight gUpdateGuiHeight, %GuiHeight%
+	Gui, s:Add, UpDown, Range5-1000 gUpdateGuiHeight, %GuiHeight%
+	Gui, s:Add, Button, xm gChangeBkColor, Change Background Color
+	Gui, s:Add, Button, xm gChangeFont, Change Font
+	Gui, s:Add, Button, x+50 gChangeFontColor, Change Font Color
 
 	Gui, s:Show,, Settings - KeypressOSD
 	ShowHotkey("KeypressOSD")
 	SetTimer, HideGUI, Off
+	return
+
+	UpdateGuiPosition:
+		GuiControlGet, GuiPosition
+		ShowHotkey("KeypressOSD")
+	return
+
+	UpdateGuiHeight:
+		GuiControlGet, newH,, GuiHeight
+		if newH {
+			GuiHeight := newH
+			ShowHotkey("KeypressOSD")
+		}
 	return
 
 	UpdateTransVal:
@@ -338,30 +363,230 @@ ShowSettingsGUI() {
 		WinSet, Transparent, %TransN%
 	return
 
-	sGuiClose:
-		Gui, s:Destroy
-		HideGUI()
+	UpdateFontSize:
+		GuiControlGet, FontSize
+		Gui, 1:Font, s%FontSize%
+		GuiControl, 1:Font, HotkeyText
 	return
 
-	SaveSettings:
-	ApplySettings:
+	sGuiClose:
 		FontSize_pre := FontSize
 
-		Gui, s:Submit, NoHide
-		SaveSettings()
-
-		Gui, 1:+LastFound
-		WinSet, Transparent, %TransN%
-		ShowHotkey("KeypressOSD")
+		Gui, s:Submit
 
 		ShowMouseButton ? MouseHotkey_On() : MouseHotkey_Off()
 
 		if (FontSize_pre != FontSize) {
 			Gui, 1:Font, s%FontSize%
-			GuiControl, 1:Font, HotkeyText  
+			GuiControl, 1:Font, HotkeyText
 		}
 
-		if (A_ThisLabel = "SaveSettings")
-			Goto, sGuiClose
+		if !GuiHeight
+			GuiHeight := 115
+
+		SaveSettings()
+		Gui, s:Destroy
+		Gui, 1:Hide
 	return
+
+	ChangeBkColor:
+		newColor := BkColor
+		if Select_Color(hGUI_s, newColor) {
+			Gui, 1:Color, %newColor%
+			ShowHotkey("KeypressOSD")
+			SetTimer, HideGUI, Off
+			BkColor := newColor
+		}
+	return
+
+	ChangeFontColor:
+		newColor := FontColor
+		if Select_Color(hGUI_s, newColor) {
+			Gui, 1:Font, c%newColor%
+			GuiControl, 1:Font, HotkeyText
+			ShowHotkey("KeypressOSD")
+			SetTimer, HideGUI, Off
+			FontColor := newColor
+		}
+	return
+
+	ChangeFont:
+		fStyle := FontStyle " s" FontSize
+		fName  := FontName
+		fColor := FontColor
+
+		if Select_Font(hGUI_s, fStyle, fName, fColor) {
+			FontStyle := fStyle
+			FontName := fName
+			FontColor := fColor
+			if RegExMatch(FontStyle, "\bs\K\d+", FontSize) {
+				FontStyle := RegExReplace(FontStyle, "\bs\K\d+")
+				GuiControl,, FontSize, %FontSize%
+			}
+
+			Gui, 1:Font
+			Gui, 1:Font, %fStyle% c%FontColor%, %fName%
+			GuiControl, 1:Font, HotkeyText
+			ShowHotkey("KeypressOSD")
+			SetTimer, HideGUI, Off
+		}
+	return
+}
+
+
+
+
+; https://autohotkey.com/boards/viewtopic.php?p=112730#p112730
+;-------------------------------------------------------------------------------
+Select_Font(hGui, ByRef Style, ByRef Name, ByRef Color) { ; using comdlg32.dll
+;-------------------------------------------------------------------------------
+    static SubKey := "SOFTWARE\Microsoft\Windows NT\CurrentVersion\FontDPI"
+
+
+    ;-----------------------------------
+    ; LOGFONT structure
+    ;-----------------------------------
+    VarSetCapacity(LOGFONT, 128, 0)
+
+    If RegExMatch(Style, "s\K\d+", s) {
+        RegRead, LogPixels, HKLM, %SubKey%, LogPixels
+        NumPut(s * LogPixels // 72, LOGFONT, 0, "Int")
+    }
+
+    If RegExMatch(Style, "w\K\d+", w)
+        NumPut(w, LOGFONT, 16, "Int")
+
+    If InStr(Style, "italic")
+        NumPut(255, LOGFONT, 20, "Int")
+
+    If InStr(Style, "underline")
+        NumPut(1, LOGFONT, 21, "Int")
+
+    If InStr(Style, "strikeout")
+        NumPut(1, LOGFONT, 22, "Int")
+
+    StrPut(Name, &LOGFONT + 28, StrLen(Name) + 1)
+
+
+    ;-----------------------------------
+    ; CHOOSEFONT structure
+    ;-----------------------------------
+
+    ; CHOOSEFONT structure expects text color in BGR format
+    BGR := convert_Color(Color)
+
+    If (A_PtrSize = 8) { ; 64 bit
+        VarSetCapacity(CHOOSEFONT, 104, 0)
+        NumPut(     104, CHOOSEFONT,  0, "UInt") ; StructSize
+        NumPut(    hGui, CHOOSEFONT,  8, "UInt") ; hwndOwner
+        NumPut(&LOGFONT, CHOOSEFONT, 24, "UInt") ; lpLogFont
+        NumPut(   0x141, CHOOSEFONT, 36, "UInt") ; Flags
+        NumPut(     BGR, CHOOSEFONT, 40, "UInt") ; bgrColor
+    }
+
+    Else { ; 32 bit
+        VarSetCapacity(CHOOSEFONT, 60, 0)
+        NumPut(      60, CHOOSEFONT,  0, "UInt") ; StructSize
+        NumPut(    hGui, CHOOSEFONT,  4, "UInt") ; hwndOwner
+        NumPut(&LOGFONT, CHOOSEFONT, 12, "UInt") ; lpLogFont
+        NumPut(   0x141, CHOOSEFONT, 20, "UInt") ; Flags
+        NumPut(     BGR, CHOOSEFONT, 24, "UInt") ; bgrColor
+    }
+
+
+    ;-----------------------------------
+    ; call ChooseFont function
+    ;-----------------------------------
+    FuncName := "comdlg32\ChooseFont" (A_IsUnicode ? "W" : "A")
+    If Not DllCall(FuncName, "UInt", &CHOOSEFONT)
+        Return, False
+
+
+    ;-----------------------------------
+    ; results to return
+    ;-----------------------------------
+
+    ; style
+    Style := "s" NumGet(CHOOSEFONT, A_PtrSize = 8 ? 32 : 16, "Int") // 10
+    Style .= " w" NumGet(LOGFONT, 16)
+    If NumGet(LOGFONT, 20, "UChar")
+        Style .= " italic"
+    If NumGet(LOGFONT, 21, "UChar")
+        Style .= " underline"
+    If NumGet(LOGFONT, 22, "UChar")
+        Style .= " strikeout"
+
+    ; name
+    Name := StrGet(&LOGFONT + 28)
+
+    ; chosen color
+    RGB := convert_Color(NumGet(CHOOSEFONT, A_PtrSize = 8 ? 40 : 24, "UInt"))
+    Color := SubStr("0x00000", 1, 10 - StrLen(RGB)) SubStr(RGB, 3)
+    Return, True
+}
+
+
+
+;-------------------------------------------------------------------------------
+Select_Color(hGui, ByRef Color) { ; using comdlg32.dll
+;-------------------------------------------------------------------------------
+
+    ; CHOOSECOLOR structure expects text color in BGR format
+    BGR := convert_Color(Color)
+
+    ; unused, but a valid pointer to the structure
+    VarSetCapacity(CUSTOM, 64, 0)
+
+
+    ;-----------------------------------
+    ; CHOOSECOLOR structure
+    ;-----------------------------------
+
+    If (A_PtrSize = 8) { ; 64 bit
+        VarSetCapacity(CHOOSECOLOR, 72, 0)
+        NumPut(     72, CHOOSECOLOR,  0) ; StructSize
+        NumPut(   hGui, CHOOSECOLOR,  8) ; hwndOwner
+        NumPut(    BGR, CHOOSECOLOR, 24) ; bgrColor
+        NumPut(&CUSTOM, CHOOSECOLOR, 32) ; lpCustColors
+        NumPut(  0x103, CHOOSECOLOR, 40) ; Flags
+    }
+
+    Else { ; 32 bit
+        VarSetCapacity(CHOOSECOLOR, 36, 0)
+        NumPut(     36, CHOOSECOLOR,  0) ; StructSize
+        NumPut(   hGui, CHOOSECOLOR,  4) ; hwndOwner
+        NumPut(    BGR, CHOOSECOLOR, 12) ; bgrColor
+        NumPut(&CUSTOM, CHOOSECOLOR, 16) ; lpCustColors
+        NumPut(  0x103, CHOOSECOLOR, 20) ; Flags
+    }
+
+
+    ;-----------------------------------
+    ; call ChooseColorA function
+    ;-----------------------------------
+
+    If Not DllCall("comdlg32\ChooseColorA", "UInt", &CHOOSECOLOR)
+        Return, False
+
+
+    ;-----------------------------------
+    ; result to return
+    ;-----------------------------------
+
+    ; chosen color
+    RGB := convert_Color(NumGet(CHOOSECOLOR, A_PtrSize = 8 ? 24 : 12, "UInt"))
+    Color := SubStr("0x00000", 1, 10 - StrLen(RGB)) SubStr(RGB, 3)
+    Return, True
+}
+
+
+
+;-------------------------------------------------------------------------------
+convert_Color(Color) { ; convert RGB <--> BGR
+;-------------------------------------------------------------------------------
+    $_FormatInteger := A_FormatInteger
+    SetFormat, Integer, Hex
+    Result := (Color & 0xFF) << 16 | Color & 0xFF00 | (Color >> 16) & 0xFF
+    SetFormat, Integer, % $_FormatInteger
+    Return, Result
 }
