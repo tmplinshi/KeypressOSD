@@ -420,7 +420,7 @@ ShowSettingsGUI() {
 			FontName := fName
 			FontColor := fColor
 			if RegExMatch(FontStyle, "\bs\K\d+", FontSize) {
-				FontStyle := RegExReplace(FontStyle, "\bs\K\d+")
+				FontStyle := RegExReplace(FontStyle, "\bs\d+")
 				GuiControl,, FontSize, %FontSize%
 			}
 
