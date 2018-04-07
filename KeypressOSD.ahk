@@ -1,6 +1,7 @@
 ; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.40 (2018-03-19) - Added font and background color settings
+; ChangeLog : v2.41 (2018-04-07) - Fixed a bug that making the script not working properly (brought from v2.40)
+;             v2.40 (2018-03-19) - Added font and background color settings
 ;             v2.30 (2018-03-16) - Settings are now saved to ini file.
 ;                                - Added settings GUI and tray menu.
 ;                                - Moved this script from Gist to GitHub.
@@ -31,8 +32,7 @@ SetBatchLines, -1
 ListLines, Off
 
 global TransN, ShowSingleKey, ShowMouseButton, ShowSingleModifierKey, ShowModifierKeyCount
-     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight, hGUI_s, BkColor, FontColor, FontStyle, FontName
-scriptPID := DllCall("GetCurrentProcessId")
+     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight, hGUI_s, BkColor, FontColor, FontStyle, FontName, SettingsGuiIsOpen
 
 ReadSettings()
 CreateTrayMenu()
@@ -40,7 +40,7 @@ CreateGUI()
 CreateHotkey()
 return
 
-#if !WinExist("ahk_pid " scriptPID)
+#if !SettingsGuiIsOpen
 	OnKeyPressed:
 		try {
 			key := GetKeyStr()
@@ -337,6 +337,7 @@ ShowSettingsGUI() {
 	Gui, s:Add, Button, xm gChangeFont, Change Font
 	Gui, s:Add, Button, x+50 gChangeFontColor, Change Font Color
 
+	SettingsGuiIsOpen := true
 	Gui, s:Show,, Settings - KeypressOSD
 	ShowHotkey("KeypressOSD")
 	SetTimer, HideGUI, Off
@@ -387,6 +388,7 @@ ShowSettingsGUI() {
 		SaveSettings()
 		Gui, s:Destroy
 		Gui, 1:Hide
+		SettingsGuiIsOpen := ""
 	return
 
 	ChangeBkColor:
