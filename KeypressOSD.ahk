@@ -1,6 +1,7 @@
 ; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.41 (2018-04-07) - Fixed a bug that making the script not working properly (brought from v2.40)
+; ChangeLog : v2.42 (2018-04-08) - Fixed throwing error sometimes when settings GUI opened
+;             v2.41 (2018-04-07) - Fixed a bug that making the script not working properly (brought from v2.40)
 ;             v2.40 (2018-03-19) - Added font and background color settings
 ;             v2.30 (2018-03-16) - Settings are now saved to ini file.
 ;                                - Added settings GUI and tray menu.
@@ -123,7 +124,7 @@ MouseHotkey_Off() {
 }
 
 ShowHotkey(HotkeyStr) {
-	if WinActive("ahk_id " hGUI_s) {
+	if SettingsGuiIsOpen {
 		ActWin_X := ActWin_Y := 0
 		ActWin_W := A_ScreenWidth
 		ActWin_H := A_ScreenHeight
@@ -293,7 +294,7 @@ CreateTrayMenu() {
 
 ShowAboutGUI() {
 	Gui, a:Font, s12 bold
-	Gui, a:Add, Text, , KeypressOSD v2.41
+	Gui, a:Add, Text, , KeypressOSD v2.42
 	Gui, a:Add, Link, gOpenUrl, <a>https://github.com/tmplinshi/KeypressOSD</a>
 	Gui, a:Show,, About
 	Return
@@ -309,6 +310,8 @@ _ExitApp() {
 
 ShowSettingsGUI() {
 	global
+
+	SettingsGuiIsOpen := true
 
 	Gui, s:Destroy
 	Gui, s:+HWNDhGUI_s
@@ -337,7 +340,6 @@ ShowSettingsGUI() {
 	Gui, s:Add, Button, xm gChangeFont, Change Font
 	Gui, s:Add, Button, x+50 gChangeFontColor, Change Font Color
 
-	SettingsGuiIsOpen := true
 	Gui, s:Show,, Settings - KeypressOSD
 	ShowHotkey("KeypressOSD")
 	SetTimer, HideGUI, Off
