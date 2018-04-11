@@ -1,6 +1,7 @@
 ; KeypressOSD.ahk
 ;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.42 (2018-04-08) - Fixed throwing error sometimes when settings GUI opened
+; ChangeLog : v2.43 (2018-04-11) - Fixed holding keys causes blinking.
+;             v2.42 (2018-04-08) - Fixed throwing error sometimes when settings GUI opened
 ;             v2.41 (2018-04-07) - Fixed a bug that making the script not working properly (brought from v2.40)
 ;             v2.40 (2018-03-19) - Added font and background color settings
 ;             v2.30 (2018-03-16) - Settings are now saved to ini file.
@@ -33,7 +34,9 @@ SetBatchLines, -1
 ListLines, Off
 
 global TransN, ShowSingleKey, ShowMouseButton, ShowSingleModifierKey, ShowModifierKeyCount
-     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight, hGUI_s, BkColor, FontColor, FontStyle, FontName, SettingsGuiIsOpen
+     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight
+     , hGUI_s, BkColor, FontColor, FontStyle, FontName, SettingsGuiIsOpen
+     , oLast := {}
 
 ReadSettings()
 CreateTrayMenu()
@@ -135,17 +138,34 @@ ShowHotkey(HotkeyStr) {
 	}
 
 	text_w := (ActWin_W > A_ScreenWidth) ? A_ScreenWidth : ActWin_W
-	GuiControl, 1:    , HotkeyText, %HotkeyStr%
+	if (HotkeyStr != oLast.HotkeyStr) {
+		GuiControl, 1:, HotkeyText, %HotkeyStr%
+		oLast.HotkeyStr := HotkeyStr
+		changed := true
+	}
 
-	GuiControl, 1:Move, HotkeyText, x0 y0 w%text_w% h%GuiHeight%
-	GuiControl, +0x201, HotkeyText
+	textWidth = w%text_w% h%GuiHeight%
+	if (textWidth != oLast.textWidth) {
+		GuiControl, 1:Move, HotkeyText, x0 y0 %textWidth%
+		GuiControl, +0x201, HotkeyText
+		oLast.textWidth := textWidth
+		changed := true
+	}
 
 	if (GuiPosition = "Top")
 		gui_y := ActWin_Y
 	else
 		gui_y := (ActWin_Y+ActWin_H) - GuiHeight - 50
 
-	Gui, 1:Show, NoActivate x%ActWin_X% y%gui_y% h%GuiHeight% w%text_w%
+	guiPos = x%ActWin_X% y%gui_y%
+	if (guiPos != last.guiPos && changed) {
+		Gui, 1:Show, NoActivate %guiPos% %textWidth%
+		last.guiPos := guiPos
+
+		; static n := 0
+		; n += 1
+		; ToolTip, % HotkeyStr " " n
+	}
 }
 
 GetKeyStr() {
@@ -242,6 +262,7 @@ IsDoubleClickEx(MSec = 300) {
 
 HideGUI() {
 	Gui, Hide
+	oLast := {}
 }
 
 ; -------------------------------------------------------------------
