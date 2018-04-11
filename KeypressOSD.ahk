@@ -315,7 +315,7 @@ CreateTrayMenu() {
 
 ShowAboutGUI() {
 	Gui, a:Font, s12 bold
-	Gui, a:Add, Text, , KeypressOSD v2.42
+	Gui, a:Add, Text, , KeypressOSD v2.43
 	Gui, a:Add, Link, gOpenUrl, <a>https://github.com/tmplinshi/KeypressOSD</a>
 	Gui, a:Show,, About
 	Return
