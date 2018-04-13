@@ -1,42 +1,18 @@
-; KeypressOSD.ahk
-;--------------------------------------------------------------------------------------------------------------------------
-; ChangeLog : v2.43 (2018-04-11) - Fixed holding keys causes blinking.
-;             v2.42 (2018-04-08) - Fixed throwing error sometimes when settings GUI opened
-;             v2.41 (2018-04-07) - Fixed a bug that making the script not working properly (brought from v2.40)
-;             v2.40 (2018-03-19) - Added font and background color settings
-;             v2.30 (2018-03-16) - Settings are now saved to ini file.
-;                                - Added settings GUI and tray menu.
-;                                - Moved this script from Gist to GitHub.
-;             v2.22 (2017-02-25) - Now pressing same combination keys continuously more than 2 times,
-;                                  for example press Ctrl+V 3 times, will displayed as "Ctrl + v (3)"
-;             v2.21 (2017-02-24) - Fixed LWin/RWin not poping up start menu
-;             v2.20 (2017-02-24) - Added displaying continuous-pressed combination keys.
-;                                  e.g.: With CTRL key held down, pressing K and U continuously will shown as "Ctrl + k, u"
-;             v2.10 (2017-01-22) - Added ShowStickyModKeyCount option
-;             v2.09 (2017-01-22) - Added ShowModifierKeyCount option
-;             v2.08 (2017-01-19) - Fixed a bug
-;             v2.07 (2017-01-19) - Added ShowSingleModifierKey option (default is True)
-;             v2.06 (2016-11-23) - Added more keys. Thanks to SashaChernykh.
-;             v2.05 (2016-10-01) - Fixed not detecting "Ctrl + ScrollLock/NumLock/Pause". Thanks to lexikos.
-;             v2.04 (2016-10-01) - Added NumpadDot and AppsKey
-;             v2.03 (2016-09-17) - Added displaying "Double-Click" of the left mouse button.
-;             v2.02 (2016-09-16) - Added displaying mouse button, and 3 settings (ShowMouseButton, FontSize, GuiHeight)
-;             v2.01 (2016-09-11) - Display non english keyboard layout characters when combine with modifer keys.
-;             v2.00 (2016-09-01) - Removed the "Fade out" effect because of its buggy.
-;                                - Added support for non english keyboard layout.
-;                                - Added GuiPosition setting.
-;             v1.00 (2013-10-11) - First release.
-;--------------------------------------------------------------------------------------------------------------------------
+; KeypressOSD v2.50 (2018-04-13)
 
-#SingleInstance force
 #NoEnv
-SetBatchLines, -1
+#SingleInstance force
+#MaxHotkeysPerInterval 200
+#KeyHistory 0
 ListLines, Off
+SetBatchLines, -1
 
-global TransN, ShowSingleKey, ShowMouseButton, ShowSingleModifierKey, ShowModifierKeyCount
-     , ShowStickyModKeyCount, DisplayTime, GuiPosition, FontSize, GuiHeight
-     , hGUI_s, BkColor, FontColor, FontStyle, FontName, SettingsGuiIsOpen
-     , oLast := {}
+global appVersion := "v2.50"
+global AutoGuiW, BkColor, Bottom_OffsetX, Bottom_OffsetY, Bottom_Screen, Bottom_Win, DisplaySec, FixedX, FixedY
+     , FontColor, FontName, FontSize, FontStyle, GuiHeight, GuiPosition, GuiWidth, SettingsGuiIsOpen
+     , ShowModifierKeyCount, ShowMouseButton, ShowSingleKey, ShowSingleModifierKey, ShowStickyModKeyCount
+     , Top_OffsetX, Top_OffsetY, Top_Screen, Top_Win, TransN
+     , oLast := {}, hGui_OSD, hGUI_s
 
 ReadSettings()
 CreateTrayMenu()
@@ -49,7 +25,7 @@ return
 		try {
 			key := GetKeyStr()
 			ShowHotkey(key)
-			SetTimer, HideGUI, % -1 * DisplayTime
+			SetTimer, HideGUI, % -1 * DisplaySec * 1000
 		}
 	return
 
@@ -64,7 +40,7 @@ return
 CreateGUI() {
 	global
 
-	Gui, +AlwaysOnTop -Caption +Owner +LastFound +E0x20
+	Gui, +AlwaysOnTop -Caption +Owner +LastFound +E0x20 +HWNDhGui_OSD
 	Gui, Margin, 0, 0
 	Gui, Color, %BkColor%
 	Gui, Font, c%FontColor% %FontStyle% s%FontSize%, %FontName%
@@ -137,34 +113,61 @@ ShowHotkey(HotkeyStr) {
 			throw
 	}
 
-	text_w := (ActWin_W > A_ScreenWidth) ? A_ScreenWidth : ActWin_W
+	text_w := AutoGuiW ? ActWin_W : GuiWidth
 	if (HotkeyStr != oLast.HotkeyStr) {
 		GuiControl, 1:, HotkeyText, %HotkeyStr%
 		oLast.HotkeyStr := HotkeyStr
 		changed := true
 	}
 
-	textWidth = w%text_w% h%GuiHeight%
-	if (textWidth != oLast.textWidth) {
-		GuiControl, 1:Move, HotkeyText, x0 y0 %textWidth%
+	ctrlSize = w%text_w% h%GuiHeight%
+	; ToolTip, % obj_print(oLast) "`n`n" ctrlSize "`n" oLast.ctrlSize
+	if (ctrlSize != oLast.ctrlSize) {
+		GuiControl, 1:Move, HotkeyText, x0 y0 %ctrlSize%
 		GuiControl, +0x201, HotkeyText
-		oLast.textWidth := textWidth
+		oLast.ctrlSize := ctrlSize
 		changed := true
 	}
 
-	if (GuiPosition = "Top")
-		gui_y := ActWin_Y
+	if (GuiPosition = "Fixed Position")
+	{
+		gui_x := FixedX
+		gui_y := FixedY
+	}
 	else
-		gui_y := (ActWin_Y+ActWin_H) - GuiHeight - 50
+	{
+		if (GuiPosition = "Top" && Top_Screen)
+		|| (GuiPosition = "Bottom" && Bottom_Screen)
+		{
+			ActWin_X := ActWin_Y := 0
+			ActWin_W := A_ScreenWidth
+			ActWin_H := A_ScreenHeight
+		}
 
-	guiPos = x%ActWin_X% y%gui_y%
-	if (guiPos != last.guiPos && changed) {
-		Gui, 1:Show, NoActivate %guiPos% %textWidth%
-		last.guiPos := guiPos
+		if (GuiPosition = "Top")
+		{
+			gui_x := ActWin_X + Top_OffsetX
+			gui_y := ActWin_Y + Top_OffsetY
+		}
+		else if (GuiPosition = "Bottom")
+		{
+			gui_x := ActWin_X + Bottom_OffsetX
+			gui_y := (ActWin_Y+ActWin_H) - GuiHeight - Bottom_OffsetY
+		}
+	}
+	
+
+	guiPos = x%gui_x% y%gui_y%
+	if (guiPos != oLast.guiPos || changed) {
+		Gui, 1:Show, NoActivate %guiPos% %ctrlSize%
+		oLast.guiPos := guiPos
+		; ToolTip, updated! %a_now%
 
 		; static n := 0
 		; n += 1
-		; ToolTip, % HotkeyStr " " n
+		; ToolTip, % HotkeyStr " " n "`n" guiPos
+	} else {
+		; ToolTip, % "why?`n" obj_print(oLast) "`n`n" ctrlSize "`n" oLast.ctrlSize
 	}
 }
 
@@ -261,7 +264,9 @@ IsDoubleClickEx(MSec = 300) {
 }
 
 HideGUI() {
-	Gui, Hide
+	if !SettingsGuiIsOpen {
+		Gui, Hide
+	}
 	oLast := {}
 }
 
@@ -276,14 +281,26 @@ ReadSettings() {
 	IniRead, ShowSingleModifierKey, %IniFile%, Settings, ShowSingleModifierKey, 1
 	IniRead, ShowModifierKeyCount , %IniFile%, Settings, ShowModifierKeyCount , 1
 	IniRead, ShowStickyModKeyCount, %IniFile%, Settings, ShowStickyModKeyCount, 0
-	IniRead, DisplayTime          , %IniFile%, Settings, DisplayTime          , 2000
+	IniRead, DisplaySec           , %IniFile%, Settings, DisplaySec           , 2
 	IniRead, GuiPosition          , %IniFile%, Settings, GuiPosition          , Bottom
 	IniRead, FontSize             , %IniFile%, Settings, FontSize             , 50
+	IniRead, GuiWidth             , %IniFile%, Settings, GuiWidth             , %A_ScreenWidth%
 	IniRead, GuiHeight            , %IniFile%, Settings, GuiHeight            , 115
 	IniRead, BkColor              , %IniFile%, Settings, BkColor              , Black
 	IniRead, FontColor            , %IniFile%, Settings, FontColor            , White
 	IniRead, FontStyle            , %IniFile%, Settings, FontStyle            , w700
 	IniRead, FontName             , %IniFile%, Settings, FontName             , Arial
+	IniRead, AutoGuiW             , %IniFile%, Settings, AutoGuiW             , 1
+	IniRead, Bottom_Win           , %IniFile%, Settings, Bottom_Win           , 1
+	IniRead, Bottom_Screen        , %IniFile%, Settings, Bottom_Screen        , 0
+	IniRead, Bottom_OffsetX       , %IniFile%, Settings, Bottom_OffsetX       , 0
+	IniRead, Bottom_OffsetY       , %IniFile%, Settings, Bottom_OffsetY       , 50
+	IniRead, Top_Win              , %IniFile%, Settings, Top_Win              , 1
+	IniRead, Top_Screen           , %IniFile%, Settings, Top_Screen           , 0
+	IniRead, Top_OffsetX          , %IniFile%, Settings, Top_OffsetX          , 0
+	IniRead, Top_OffsetY          , %IniFile%, Settings, Top_OffsetY          , 0
+	IniRead, FixedX               , %IniFile%, Settings, FixedX               , 100
+	IniRead, FixedY               , %IniFile%, Settings, FixedY               , 200
 }
 
 SaveSettings() {
@@ -295,27 +312,48 @@ SaveSettings() {
 	IniWrite, %ShowSingleModifierKey%, %IniFile%, Settings, ShowSingleModifierKey
 	IniWrite, %ShowModifierKeyCount% , %IniFile%, Settings, ShowModifierKeyCount
 	IniWrite, %ShowStickyModKeyCount%, %IniFile%, Settings, ShowStickyModKeyCount
-	IniWrite, %DisplayTime%          , %IniFile%, Settings, DisplayTime
+	IniWrite, %DisplaySec%           , %IniFile%, Settings, DisplaySec
 	IniWrite, %GuiPosition%          , %IniFile%, Settings, GuiPosition
 	IniWrite, %FontSize%             , %IniFile%, Settings, FontSize
+	IniWrite, %GuiWidth%             , %IniFile%, Settings, GuiWidth
 	IniWrite, %GuiHeight%            , %IniFile%, Settings, GuiHeight
 	IniWrite, %BkColor%              , %IniFile%, Settings, BkColor
 	IniWrite, %FontColor%            , %IniFile%, Settings, FontColor
 	IniWrite, %FontStyle%            , %IniFile%, Settings, FontStyle
 	IniWrite, %FontName%             , %IniFile%, Settings, FontName
+	IniWrite, %AutoGuiW%             , %IniFile%, Settings, AutoGuiW
+	IniWrite, %Bottom_Win%           , %IniFile%, Settings, Bottom_Win
+	IniWrite, %Bottom_Screen%        , %IniFile%, Settings, Bottom_Screen
+	IniWrite, %Bottom_OffsetX%       , %IniFile%, Settings, Bottom_OffsetX
+	IniWrite, %Bottom_OffsetY%       , %IniFile%, Settings, Bottom_OffsetY
+	IniWrite, %Top_Win%              , %IniFile%, Settings, Top_Win
+	IniWrite, %Top_Screen%           , %IniFile%, Settings, Top_Screen
+	IniWrite, %Top_OffsetX%          , %IniFile%, Settings, Top_OffsetX
+	IniWrite, %Top_OffsetY%          , %IniFile%, Settings, Top_OffsetY
+	IniWrite, %FixedX%               , %IniFile%, Settings, FixedX
+	IniWrite, %FixedY%               , %IniFile%, Settings, FixedY
 }
 
 CreateTrayMenu() {
 	Menu, Tray, NoStandard
 	Menu, Tray, Add, Settings, ShowSettingsGUI
+	Menu, Tray, Add, Suspend, ToggleSuspend
 	Menu, Tray, Add, About, ShowAboutGUI
 	Menu, Tray, Add
 	Menu, Tray, Add, Exit, _ExitApp
+	Menu, Tray, Default, Settings
+	Menu, Tray, Tip, KeypressOSD
+}
+
+ToggleSuspend() {
+	Suspend, Toggle
+	Menu, Tray, ToggleCheck, Suspend
+	Menu, Tray, Tip, % "KeypressOSD" (A_IsSuspended ? " - Suspended" : "")
 }
 
 ShowAboutGUI() {
 	Gui, a:Font, s12 bold
-	Gui, a:Add, Text, , KeypressOSD v2.43
+	Gui, a:Add, Text, , KeypressOSD %appVersion%
 	Gui, a:Add, Link, gOpenUrl, <a>https://github.com/tmplinshi/KeypressOSD</a>
 	Gui, a:Show,, About
 	Return
@@ -329,6 +367,12 @@ _ExitApp() {
 	ExitApp
 }
 
+sGuiAddTitleText(text) {
+	Gui, s:Font, s16
+	Gui, s:Add, Text, xm y+20, %text%
+	Gui, s:Font, s12
+}
+
 ShowSettingsGUI() {
 	global
 
@@ -337,38 +381,117 @@ ShowSettingsGUI() {
 	Gui, s:Destroy
 	Gui, s:+HWNDhGUI_s
 	Gui, s:Font, s12
-	Gui, s:Add, Text, , Transparency:
+
+	Gui, s:Add, Text, xm, Transparency:
 	Gui, s:Add, Text, x+10 w100 vTransNVal, %TransN%
 	Gui, s:Add, Slider, xm+10 vTransN Range0-255 ToolTip gUpdateTransVal, %TransN%
+
+
+	Gui, s:Add, Text, xm, Display
+	Gui, s:Add, Edit, x+10 w80 Center vDisplaySec, %DisplaySec%
+	Gui, s:Add, Text, x+10, Seconds
+
 	Gui, s:Add, Checkbox, xm h24 vShowSingleKey Checked%ShowSingleKey%, Show Single Key
 	Gui, s:Add, Checkbox, xm h24 vShowMouseButton Checked%ShowMouseButton%, Show Mouse Button
 	Gui, s:Add, Checkbox, xm h24 vShowSingleModifierKey Checked%ShowSingleModifierKey%, Show Single Modifier Key
 	Gui, s:Add, Checkbox, xm h24 vShowModifierKeyCount Checked%ShowModifierKeyCount%, Show Modifier Key Count
 	Gui, s:Add, Checkbox, xm h24 vShowStickyModKeyCount Checked%ShowStickyModKeyCount%, Show Sticky Modifier Key Count
-	Gui, s:Add, Text, xm, Display
-	Gui, s:Add, Edit, x+10 w100 Number Center vDisplayTime, %DisplayTime%
-	Gui, s:Add, Text, x+10, Milliseconds
-	Gui, s:Add, Text, xm, Gui Position:
-	Gui, s:Add, DDL, x+10 w150 Center vGuiPosition gUpdateGuiPosition, Bottom||Top
-	GuiControl, s:Choose, GuiPosition, %GuiPosition%
-	Gui, s:Add, Text, xm, Font Size:
-	Gui, s:Add, Edit, x+10 w100 Number Center vFontSize gUpdateFontSize, %FontSize%
-	Gui, s:Add, UpDown, Range1-1000 gUpdateFontSize, %fontSize%
-	Gui, s:Add, Text, xm, Gui Height:
-	Gui, s:Add, Edit, x+10 w100 Number Center vGuiHeight gUpdateGuiHeight, %GuiHeight%
-	Gui, s:Add, UpDown, Range5-1000 gUpdateGuiHeight, %GuiHeight%
-	Gui, s:Add, Button, xm gChangeBkColor, Change Background Color
+
+	sGuiAddTitleText("Window Position")
+		Gui, s:Add, Tab3, xm y+10 Buttons vGuiPosition gUpdateGuiPosition, Bottom|Top|Fixed Position
+		GuiControl, s:ChooseString, GuiPosition, |%GuiPosition%
+		Gui, s:Tab, 1
+			Gui, s:Add, Text, Section y+20, Relative To:
+			Gui, s:Add, Radio, x+10 vBottom_Win Checked%Bottom_Win%, Active Window
+			Gui, s:Add, Radio, x+20 vBottom_Screen Checked%Bottom_Screen%, Screen
+			Gui, s:Add, Text, xs y+20, OffsetX
+			Gui, s:Add, Edit, x+10 w80 vBottom_OffsetX Number gUpdateOSD, %Bottom_OffsetX%
+			Gui, s:Add, UpDown, Range0-%A_ScreenWidth% 0x80 gUpdateOSD, %Bottom_OffsetX%
+			Gui, s:Add, Text, x+50, OffsetY
+			Gui, s:Add, Edit, x+10 w80 vBottom_OffsetY Number gUpdateOSD, %Bottom_OffsetY%
+			Gui, s:Add, UpDown, Range0-%A_ScreenHeight% 0x80 gUpdateOSD, %Bottom_OffsetY%
+		Gui, s:Tab, 2
+			Gui, s:Add, Text, Section y+20, Relative To:
+			Gui, s:Add, Radio, x+10 vTop_Win Checked%Top_Win%, Active Window
+			Gui, s:Add, Radio, x+20 vTop_Screen Checked%Top_Screen%, Screen
+			Gui, s:Add, Text, xs y+20, OffsetX
+			Gui, s:Add, Edit, x+10 w80 vTop_OffsetX Number gUpdateOSD, 
+			Gui, s:Add, UpDown, Range0-%A_ScreenWidth% 0x80 gUpdateOSD, %Top_OffsetX%
+			Gui, s:Add, Text, x+50, OffsetY
+			Gui, s:Add, Edit, x+10 w80 vTop_OffsetY Number gUpdateOSD, 
+			Gui, s:Add, UpDown, Range0-%A_ScreenHeight% 0x80 gUpdateOSD, %Top_OffsetY%
+		Gui, s:Tab, 3
+			Gui, s:Add, Text, y+20, X
+			Gui, s:Add, Edit, x+10 w80 vFixedX Number gUpdateOSD, %FixedX%
+			Gui, s:Add, UpDown, Range0-%A_ScreenWidth% 0x80 gUpdateOSD, %FixedX%
+			Gui, s:Add, Text, x+50, Y
+			Gui, s:Add, Edit, x+10 w80 vFixedY Number gUpdateOSD, %FixedY%
+			Gui, s:Add, UpDown, Range0-%A_ScreenHeight% 0x80 gUpdateOSD, %FixedY%
+			Gui, s:Font, s10
+			Gui, s:Add, Text, xs cGray, Input or drag the OSD window.
+			Gui, s:Font, s12
+		Gui, s:Tab
+
+	sGuiAddTitleText("Window Size")
+		Gui, s:Add, Text, xm, % " Width:"
+
+		Gui, s:Add, Edit, x+10 w85 Center Number vGuiWidth gUpdateGuiWidth, %GuiWidth%
+		Gui, s:Add, UpDown, Range10-4000 gUpdateGuiWidth 0x80 vGuiWUD, %GuiWidth%
+		Gui, s:Add, Checkbox, x+30 vAutoGuiW Checked%AutoGuiW% g_AutoGuiW, Same As Active Window
+		Gosub, _AutoGuiW
+
+		Gui, s:Add, Text, xm, Height:
+		Gui, s:Add, Edit, x+10 w85 Number Center vGuiHeight gUpdateGuiHeight, %GuiHeight%
+		Gui, s:Add, UpDown, Range5-2000 gUpdateGuiHeight 0x80, %GuiHeight%
+
+	Gui, s:Add, Button, xm y+20 gChangeBkColor, Change Background Color
+
 	Gui, s:Add, Button, xm gChangeFont, Change Font
 	Gui, s:Add, Button, x+50 gChangeFontColor, Change Font Color
 
+	Gui, s:Add, Text, xm, Font Size:
+	Gui, s:Add, Edit, x+10 w100 Number Center vFontSize gUpdateFontSize, %FontSize%
+	Gui, s:Add, UpDown, Range1-1000 gUpdateFontSize 0x80, %fontSize%
+
+	if (GuiPosition = "Fixed Position")
+		OSD_EnableDrag()
 	Gui, s:Show,, Settings - KeypressOSD
+
 	ShowHotkey("KeypressOSD")
 	SetTimer, HideGUI, Off
 	return
 
-	UpdateGuiPosition:
-		GuiControlGet, GuiPosition
+	UpdateOSD:
+		Gui, Submit, NoHide
 		ShowHotkey("KeypressOSD")
+	return
+
+	_AutoGuiW:
+		; GuiControlGet, AutoGuiW, s:
+		Gui, Submit, NoHide
+		GuiControl, % "s:Enable" !AutoGuiW, GuiWidth
+		GuiControl, % "s:Enable" !AutoGuiW, GuiWUD
+		ShowHotkey("KeypressOSD")
+		GuiControl, 1:+Redraw, HotkeyText
+	return
+
+	UpdateGuiPosition:
+		oLast := {}
+		Gui, Submit, NoHide
+		ShowHotkey("KeypressOSD")
+
+		if (GuiPosition = "Fixed Position")
+			OSD_EnableDrag()
+		else
+			OSD_DisableDrag()
+	return
+
+	UpdateGuiWidth:
+		GuiControlGet, newW,, GuiWidth
+		if newW {
+			GuiWidth := newW
+			ShowHotkey("KeypressOSD")
+		}
 	return
 
 	UpdateGuiHeight:
@@ -394,6 +517,7 @@ ShowSettingsGUI() {
 	return
 
 	sGuiClose:
+	sGuiEscape:
 		FontSize_pre := FontSize
 
 		Gui, s:Submit
@@ -411,6 +535,7 @@ ShowSettingsGUI() {
 		SaveSettings()
 		Gui, s:Destroy
 		Gui, 1:Hide
+		OSD_DisableDrag()
 		SettingsGuiIsOpen := ""
 	return
 
@@ -459,6 +584,34 @@ ShowSettingsGUI() {
 }
 
 
+WM_LBUTTONDOWN(wParam, lParam, msg, hwnd) {
+	static hCursor := DllCall("LoadCursor", "Uint", 0, "Int", 32646, "Ptr") ; SizeAll = 32646
+
+	if (hwnd = hGui_OSD) {
+		PostMessage, 0xA1, 2
+		DllCall("SetCursor", "ptr", hCursor)
+	}
+}
+
+WM_MOVE(wParam, lParam, msg, hwnd) {
+	if (hwnd = hGui_OSD) && GetKeyState("LButton", "P")
+	{
+		GuiControl, s:, FixedX, % lParam << 48 >> 48
+		GuiControl, s:, FixedY, % lParam << 32 >> 48
+	}
+}
+
+OSD_EnableDrag() {
+	OnMessage(0x0201, "WM_LBUTTONDOWN")
+	OnMessage(0x0003, "WM_MOVE")
+	Gui, 1:-E0x20
+}
+
+OSD_DisableDrag() {
+	OnMessage(0x0201, "")
+	OnMessage(0x0003, "")
+	Gui, 1:+E0x20
+}
 
 
 ; https://autohotkey.com/boards/viewtopic.php?p=112730#p112730
