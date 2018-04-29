@@ -1,4 +1,5 @@
-﻿v2.50 (2018-04-13) - Added offset/fixed coordinates and window width settings
+﻿v2.51 (2018-04-29) - Fixed a bug
+v2.50 (2018-04-13) - Added offset/fixed coordinates and window width settings
                    - Added 'Suspend' item to tray menu
 v2.43 (2018-04-11) - Fixed holding keys causes blinking.
 v2.42 (2018-04-08) - Fixed throwing error sometimes when settings GUI opened

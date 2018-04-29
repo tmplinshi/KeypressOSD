@@ -1,4 +1,4 @@
-; KeypressOSD v2.50 (2018-04-13)
+; KeypressOSD v2.51 (2018-04-29)
 
 #NoEnv
 #SingleInstance force
@@ -7,7 +7,7 @@
 ListLines, Off
 SetBatchLines, -1
 
-global appVersion := "v2.50"
+global appVersion := "v2.51"
 global AutoGuiW, BkColor, Bottom_OffsetX, Bottom_OffsetY, Bottom_Screen, Bottom_Win, DisplaySec, FixedX, FixedY
      , FontColor, FontName, FontSize, FontStyle, GuiHeight, GuiPosition, GuiWidth, SettingsGuiIsOpen
      , ShowModifierKeyCount, ShowMouseButton, ShowSingleKey, ShowSingleModifierKey, ShowStickyModKeyCount
@@ -94,12 +94,12 @@ CreateHotkey() {
 
 MouseHotkey_On() {
 	Loop, Parse, % "LButton|MButton|RButton", |
-		Hotkey, % "~*" A_LoopField, On
+		Hotkey, % "~*" A_LoopField, On, UseErrorLevel
 }
 
 MouseHotkey_Off() {
 	Loop, Parse, % "LButton|MButton|RButton", |
-		Hotkey, % "~*" A_LoopField, Off
+		Hotkey, % "~*" A_LoopField, Off, UseErrorLevel
 }
 
 ShowHotkey(HotkeyStr) {
