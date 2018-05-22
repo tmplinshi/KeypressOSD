@@ -1,4 +1,4 @@
-; KeypressOSD v2.51 (2018-04-29)
+; KeypressOSD v2.52 (2018-05-22)
 
 #NoEnv
 #SingleInstance force
@@ -7,7 +7,7 @@
 ListLines, Off
 SetBatchLines, -1
 
-global appVersion := "v2.51"
+global appVersion := "v2.52"
 global AutoGuiW, BkColor, Bottom_OffsetX, Bottom_OffsetY, Bottom_Screen, Bottom_Win, DisplaySec, FixedX, FixedY
      , FontColor, FontName, FontSize, FontStyle, GuiHeight, GuiPosition, GuiWidth, SettingsGuiIsOpen
      , ShowModifierKeyCount, ShowMouseButton, ShowSingleKey, ShowSingleModifierKey, ShowStickyModKeyCount
@@ -463,7 +463,17 @@ ShowSettingsGUI() {
 
 	UpdateOSD:
 		Gui, Submit, NoHide
+		Gosub, _CheckValues
 		ShowHotkey("KeypressOSD")
+	return
+
+	_CheckValues:
+		Loop, Parse, % "Bottom_OffsetX,Bottom_OffsetY,Top_OffsetX,Top_OffsetY,FixedX,FixedY", `,
+		{
+			if (%A_LoopField% = "") {
+				%A_LoopField% := 0
+			}
+		}
 	return
 
 	_AutoGuiW:
@@ -521,6 +531,7 @@ ShowSettingsGUI() {
 		FontSize_pre := FontSize
 
 		Gui, s:Submit
+		Gosub, _CheckValues
 
 		ShowMouseButton ? MouseHotkey_On() : MouseHotkey_Off()
 

@@ -1,4 +1,5 @@
-﻿v2.51 (2018-04-29) - Fixed a bug
+﻿v2.52 (2018-05-22) - Fixed: #8 - Empty an offset field causing errors
+v2.51 (2018-04-29) - Fixed a bug
 v2.50 (2018-04-13) - Added offset/fixed coordinates and window width settings
                    - Added 'Suspend' item to tray menu
 v2.43 (2018-04-11) - Fixed holding keys causes blinking.
