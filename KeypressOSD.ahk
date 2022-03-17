@@ -1,4 +1,4 @@
-; KeypressOSD v2.52 (2018-05-22)
+; KeypressOSD v2.53 (2022-03-17)
 
 #NoEnv
 #SingleInstance force
@@ -7,7 +7,7 @@
 ListLines, Off
 SetBatchLines, -1
 
-global appVersion := "v2.52"
+global appVersion := "v2.53"
 global AutoGuiW, BkColor, Bottom_OffsetX, Bottom_OffsetY, Bottom_Screen, Bottom_Win, DisplaySec, FixedX, FixedY
      , FontColor, FontName, FontSize, FontStyle, GuiHeight, GuiPosition, GuiWidth, SettingsGuiIsOpen
      , ShowModifierKeyCount, ShowMouseButton, ShowSingleKey, ShowSingleModifierKey, ShowStickyModKeyCount
@@ -94,12 +94,12 @@ CreateHotkey() {
 
 MouseHotkey_On() {
 	Loop, Parse, % "LButton|MButton|RButton", |
-		Hotkey, % "~*" A_LoopField, On, UseErrorLevel
+		Hotkey, % "~*" A_LoopField, OnKeyPressed, On
 }
 
 MouseHotkey_Off() {
 	Loop, Parse, % "LButton|MButton|RButton", |
-		Hotkey, % "~*" A_LoopField, Off, UseErrorLevel
+		Hotkey, % "~*" A_LoopField, OnKeyPressed, Off
 }
 
 ShowHotkey(HotkeyStr) {
@@ -114,6 +114,7 @@ ShowHotkey(HotkeyStr) {
 	}
 
 	text_w := AutoGuiW ? ActWin_W : GuiWidth
+	text_w := Round( text_w/(A_ScreenDPI/96) )
 	if (HotkeyStr != oLast.HotkeyStr) {
 		GuiControl, 1:, HotkeyText, %HotkeyStr%
 		oLast.HotkeyStr := HotkeyStr
